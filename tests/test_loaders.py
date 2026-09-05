@@ -6,7 +6,7 @@ import pytest
 from tests.conftest import FIXTURES
 
 from usdjpy_mr.data.fred import parse_fred_csv
-from usdjpy_mr.data.fx_yahoo import fetch_fx_yahoo, normalise_yahoo_frame
+from usdjpy_mr.data.fx_yahoo import fetch_fx_yahoo, normalise_yahoo_frame, relabel_by_weekdays
 from usdjpy_mr.data.ibkr import bars_to_series
 from usdjpy_mr.data.mof import decode_bytes, parse_mof_csv
 
@@ -118,3 +118,30 @@ def test_bars_to_series():
     assert s.loc["2024-07-02"] == pytest.approx(161.5)
     with pytest.raises(ValueError):
         bars_to_series([])
+
+
+def test_relabel_by_weekdays_moves_monday_to_friday():
+    idx = pd.to_datetime(
+        ["2026-08-28", "2026-08-31", "2026-09-01", "2026-09-05"]
+    )  # Fri Mon Tue Sat
+    s = pd.Series([1.0, 2.0, 3.0, 4.0], index=idx, name="usdjpy")
+    out = relabel_by_weekdays(s, -1)
+    assert list(out.index.strftime("%Y-%m-%d")) == [
+        "2026-08-27",
+        "2026-08-28",
+        "2026-08-31",
+        "2026-09-03",
+    ]
+    assert out.loc["2026-08-28"] == 2.0  # Monday's row is Friday's close
+    assert relabel_by_weekdays(s, 0) is s
+
+
+def test_fetch_fx_yahoo_applies_offset(cfg):
+    def fake_download(ticker, start, end):
+        idx = pd.to_datetime(["2026-08-31", "2026-09-01"])
+        return pd.DataFrame({"Close": [160.12, 159.75]}, index=idx)
+
+    s, _ = fetch_fx_yahoo(cfg.sources.fx, dt.date(2026, 8, 1), None, cfg.raw_dir, fake_download)
+    assert cfg.sources.fx.yahoo_label_offset_bdays == -1
+    assert s.loc["2026-08-28"] == pytest.approx(160.12)
+    assert s.loc["2026-08-31"] == pytest.approx(159.75)

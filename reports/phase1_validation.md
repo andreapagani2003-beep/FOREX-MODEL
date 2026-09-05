@@ -1,7 +1,7 @@
 # Phase 1 validation
 
-Result: **PASS**
-errors: 0, warnings: 0
+Result: **FAIL**
+errors: 1, warnings: 0
 
 ## Stats
 
@@ -20,6 +20,9 @@ errors: 0, warnings: 0
 | us_lag_days_mean | 0.0 |
 | jgb_lag_days_max | 7.0 |
 | jgb_lag_days_mean | 0.141 |
+| timing_corr_same_day | -0.043 |
+| timing_corr_spread_lag1 | 0.42 |
+| timing_corr_spread_lead1 | 0.003 |
 | usdjpy_min | 75.74 |
 | us2y_min | 0.09 |
 | us10y_min | 0.52 |
@@ -34,3 +37,7 @@ errors: 0, warnings: 0
 | jgb10y_max | 3.006 |
 | spread2y_max | 5.131 |
 | spread10y_max | 4.135 |
+
+## errors
+
+- `timing`: spot/spread daily-change correlation is not highest on the same day: same -0.04, spread lag1 +0.42, lead1 +0.00 -> a source is date-shifted

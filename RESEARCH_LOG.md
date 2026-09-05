@@ -157,3 +157,43 @@ risk sentiment, BoJ balance sheet, terms of trade) and re-test cointegration, (c
 error-correction specification in changes rather than levels, (d) accept that 2020-style episodes
 are the only cointegrated regime and treat the strategy as episodic. Each is a new hypothesis
 with its own Phase 2, not a tweak of this one.
+
+## 2026-09-05 — Data bug found after Phase 2: Yahoo FX rows are dated one weekday late
+
+**How it surfaced.** While checking what the spread explains in changes (for the recalibration
+discussion), the daily-change correlation between spot and the 10y spread was −0.04 on the same
+day but **+0.47 against the previous day's spread change** (post-2016). A one-day lead of that
+size is not a market feature; it is a date offset in a source.
+
+**Verification.** Pulled IBKR IDEALPRO USD.JPY daily bars for 2026-07-27..2026-09-04 through the
+IBKR connector (bars stamped 21:15Z = 17:15 ET, i.e. the NY close of the session). Yahoo's row
+labelled 2026-08-31 (Mon) = 160.12 matches IBKR's Friday 2026-08-28 close (160.06); Yahoo
+2026-09-02 = 160.20 matches IBKR 2026-09-01 (160.18); Yahoo 2026-09-03 = 158.92 matches IBKR
+2026-09-02 (158.71). Same pattern on the handoff anchors: Yahoo 2023-01-13 = 129.17 is the
+Jan 12 CPI-day close; Yahoo 2024-07-11 = 161.61 is the Jul 10 close, the day before the
+intervention drop. Conclusion: Yahoo labels its daily FX bar with the date on which the bar ends
+(~00:00 GMT), so row D holds the NY close of the previous weekday. FRED and MoF are dated
+correctly (they are the exchange's own daily prints).
+
+**Fix.** `sources.fx.yahoo_label_offset_bdays: -1` in config; `relabel_by_weekdays` in the Yahoo
+loader moves every row back one weekday (Monday → Friday). New validation check `timing`: the
+same-day correlation of daily changes between spot and the 10y spread must exceed the lag-1 and
+lead-1 correlations by `validation.timing_min_margin` (0.10); it fails the old parquet
+(same −0.04, lag1 +0.42) and passes a shifted-back version (same +0.43, lag1 +0.01). Two loader
+tests and one validation test added. The snapshot convention itself (`ny_close`) is unchanged.
+
+**Does it change the Phase 2 verdict?** Preview on the processed parquet with spot shifted back
+one row (3,979 rows; 185 rows lost where the next weekday had been dropped): Engle-Granger p
+0.97 (10y, full) / 0.99 (post-2016), Johansen trace 4.7 / 2.6, half-lives 766 / ∞ days; 2y the
+same. Rolling EG rejects in 2.4% of windows. **No.** A one-day shift cannot create or destroy a
+long-run level relationship; it matters for anything in changes, for signal timing in Phases 3–4,
+and for the changes-correlation numbers below. Phase 2 will be re-run officially once the
+parquet is rebuilt with the fix (Andrea re-runs the Phase 1 notebook on Colab; the container
+cannot reach the sources).
+
+**What the spread does explain (after the shift, post-2016).** Correlation of changes in spot vs
+the 10y spread: 1-day +0.43, 1-week +0.40, 1-month +0.58, 3-month +0.56. The relationship is
+strong in *changes* at every horizon and contemporaneous (no lead once dates are aligned). It is
+the *level* anchor that drifts. The single 2019–2020 window in which cointegration held has a
+13-day half-life (CI 7–21) — anecdotal and in-sample, but it shows what the mean-reverting regime
+looks like when it exists.

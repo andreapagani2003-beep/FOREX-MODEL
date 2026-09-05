@@ -80,9 +80,11 @@ def synthetic_daily() -> pd.DataFrame:
     rng = np.random.default_rng(0)
     n = len(idx)
     df = pd.DataFrame(index=idx)
-    df["usdjpy"] = 100 + np.cumsum(rng.normal(0, 0.5, n)).clip(-25, 60)
+    # spot co-moves with the US 10y on the same day (as real data does), so the timing check passes
+    shock = rng.normal(0, 1, n)
     df["us2y"] = 1.5 + np.cumsum(rng.normal(0, 0.02, n)).clip(-1.4, 4)
-    df["us10y"] = 2.5 + np.cumsum(rng.normal(0, 0.02, n)).clip(-1.9, 3)
+    df["us10y"] = 2.5 + np.cumsum(0.02 * shock).clip(-1.9, 3)
+    df["usdjpy"] = 100 + np.cumsum(0.4 * shock + rng.normal(0, 0.3, n)).clip(-25, 60)
     df["jgb2y"] = 0.1 + np.cumsum(rng.normal(0, 0.005, n)).clip(-0.4, 1)
     df["jgb10y"] = 0.5 + np.cumsum(rng.normal(0, 0.005, n)).clip(-0.7, 1.5)
     df["spread2y"] = df["us2y"] - df["jgb2y"]

@@ -25,6 +25,10 @@ sources:
     provider: yahoo
     yahoo_ticker: "USDJPY=X"
     yahoo_field: Close
+    # Yahoo labels its daily FX bar with the date on which the bar *ends* (~00:00 GMT), so the
+    # row labelled D holds the NY close of the previous weekday. Verified against IBKR IDEALPRO
+    # closes for 2026-08-28..2026-09-03 (see RESEARCH_LOG 2026-09-05). Relabel by -1 weekday.
+    yahoo_label_offset_bdays: -1
     snapshot_note: "Yahoo daily bar close; approximates NY 17:00 ET close. IBKR is the production source."
   ibkr:
     host_env: IBKR_HOST
@@ -53,6 +57,7 @@ validation:
   min_rows: 2500
   required_start_before: "2010-01-15"
   max_days_stale_end: 10
+  timing_min_margin: 0.10
 
 stats:
   # Phase 2: statistical confirmation. Specifications = tenor x yield_type x sample.

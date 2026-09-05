@@ -56,6 +56,7 @@ class FxConfig(_Strict):
     provider: Literal["yahoo", "ibkr"]
     yahoo_ticker: str
     yahoo_field: str
+    yahoo_label_offset_bdays: int = 0
     snapshot_note: str
 
 
@@ -122,6 +123,7 @@ class ValidationConfig(_Strict):
     min_rows: int = Field(ge=1)
     required_start_before: dt.date
     max_days_stale_end: int = Field(ge=0)
+    timing_min_margin: float = Field(default=0.0, ge=0.0)
 
     @field_validator("bounds")
     @classmethod

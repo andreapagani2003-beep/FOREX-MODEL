@@ -165,6 +165,27 @@ def validate_daily(
             "gaps", f"... and {len(big) - 20} more gaps > {vcfg.max_gap_business_days} weekdays"
         )
 
+    # -- cross-source timing ----------------------------------------------------------------
+    # Daily changes of spot and of the 10y spread are strongly correlated on the same day. If a
+    # lagged or led correlation beats the contemporaneous one, a source is date-shifted.
+    timing: dict[str, float] = {}
+    if len(df) > 250:
+        ds, dx = df["usdjpy"].diff(), df["spread10y"].diff()
+        timing = {
+            "same_day": float(ds.corr(dx)),
+            "spread_lag1": float(ds.corr(dx.shift(1))),
+            "spread_lead1": float(ds.corr(dx.shift(-1))),
+        }
+        best_off = max(timing["spread_lag1"], timing["spread_lead1"])
+        if vcfg.timing_min_margin and timing["same_day"] < best_off + vcfg.timing_min_margin:
+            res.error(
+                "timing",
+                "spot/spread daily-change correlation is not highest on the same "
+                f"day: same {timing['same_day']:+.2f}, spread lag1 "
+                f"{timing['spread_lag1']:+.2f}, lead1 {timing['spread_lead1']:+.2f} "
+                "-> a source is date-shifted",
+            )
+
     # -- staleness summary (informational) ---------------------------------------------------
     stale: dict[str, float] = {}
     for col in LAG_COLUMNS:
@@ -188,6 +209,7 @@ def validate_daily(
         "coverage_pct": round(100 * len(df) / max(1, len(bdays)), 2),
         "largest_gap_weekdays": int(gap_sizes.max()) if len(gap_sizes) else 0,
         **stale,
+        **{f"timing_corr_{k}": round(v, 3) for k, v in timing.items()},
         **{f"{c}_min": round(float(df[c].min()), 4) for c in OUTPUT_COLUMNS},
         **{f"{c}_max": round(float(df[c].max()), 4) for c in OUTPUT_COLUMNS},
     }
