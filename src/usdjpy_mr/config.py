@@ -98,6 +98,7 @@ class AlignmentConfig(_Strict):
     drop_if_missing: list[str]
     asof_max_lag_days: dict[str, int]
     weekmask: str = "Mon Tue Wed Thu Fri"
+    publication_lag_days: int = Field(default=0, ge=0)
 
     @field_validator("asof_max_lag_days")
     @classmethod

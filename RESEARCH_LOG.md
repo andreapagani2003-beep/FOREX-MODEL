@@ -50,3 +50,41 @@ were written against the documented formats and tested on hand-written fixtures;
 may differ (title lines, encoding, column names) and the parsers are defensive about that, but
 this is unverified. **Phase 1 acceptance (fetch + validate clean from empty `data/`, 2010 →
 present) is pending Andrea's run of `notebooks/phase1_data.ipynb` on Colab.** No PR until then.
+
+## 2026-09-05 — Phase 1 acceptance run (Colab, real data)
+
+**Run.** `notebooks/phase1_data.ipynb` on Colab with a FRED key, `ny_close` convention, from an
+empty `data/`. Fetch, align and validate all completed; validation **PASS**, 0 errors, 0 warnings.
+
+| metric | value |
+|---|---|
+| rows | 4,164 |
+| range | 2010-01-04 → 2026-09-03 |
+| weekdays in range | 4,349 (coverage 95.75%) |
+| dates dropped | 187: 180 no UST print (US bond holidays), 10 no Yahoo FX bar, 1 JGB stale > 7 days |
+| JGB carried forward | 239 rows, mean lag 0.14 days, max 7 |
+| largest gap | 2 weekdays |
+| ranges | USD/JPY 75.7–163.9; UST 2y 0.09–5.19; UST 10y 0.52–4.98; JGB 2y −0.37–1.85; JGB 10y −0.30–3.01 |
+| spreads | 2y 0.03–5.13; 10y 0.50–4.14 |
+
+**Anchors (handoff §1).** Jan 2023: USD/JPY 128.3–132.1 with 10y spread 2.92–3.10. Jul 2024:
+USD/JPY 158.2–161.6 with 10y spread 3.11–3.22. Both consistent with the handoff's approximate
+values (128 / 3.1 and 161 / 3.4); the Jul 2024 spread is ~0.2pp lower than the handoff figure,
+which is within what different tenor/quote conventions produce. The sign test on the fitted
+residual is Phase 2 work.
+
+**Source observations.**
+- FRED via `fredapi`: 4,373 rows per series, 180 NaN each (holidays), last print 2026-09-03.
+- MoF: the all-history file runs to 2026-09-03 (1.19 MB); the current-year file is tiny (545 B).
+  A footer line ("※If you cannot download the latest csv data...") is dropped by the parser and
+  logged, as designed. No NaN in 2Y/10Y from 2010.
+- Yahoo `USDJPY=X`: 4,364 rows, last bar 2026-09-04. Six weekday bars missing that are not
+  holidays (2011-04-15, 2013-10-08, 2017-07-11, 2017-11-16, 2019-05-22, 2025-04-21): Yahoo data
+  holes, rows dropped and logged. IBKR as production source removes this.
+- 31 UST gaps were reported "unexplained": all Columbus Day and Veterans Day, when the bond market
+  closes but the NYSE does not. **Fixed**: US calendar is now NYSE ∪ US federal holidays, i.e.
+  the SIFMA full-close list. The single JGB gap (2026-09-04) is publication lag; gaps within
+  `alignment.publication_lag_days` (3) of the end date are now classified as such.
+
+**Decision.** Phase 1 acceptance criteria met (fetch + validate clean from empty `data/`, 2010 →
+present). Convention stays `ny_close`. PR opened for review; Phase 2 starts on approval.

@@ -9,6 +9,9 @@ def test_us_holidays_known_dates():
     hol = us_holidays(dt.date(2024, 1, 1), dt.date(2024, 12, 31))
     assert dt.date(2024, 7, 4) in hol
     assert dt.date(2024, 11, 28) in hol  # Thanksgiving
+    assert dt.date(2024, 3, 29) in hol  # Good Friday (NYSE/SIFMA, not federal)
+    assert dt.date(2024, 10, 14) in hol  # Columbus Day (SIFMA bond close, NYSE open)
+    assert dt.date(2024, 11, 11) in hol  # Veterans Day (SIFMA bond close, NYSE open)
     assert dt.date(2024, 7, 5) not in hol
 
 
@@ -32,3 +35,13 @@ def test_classify_missing():
     out = classify_missing(missing, "us", dt.date(2024, 7, 1), dt.date(2024, 7, 31))
     assert out.set_index("date").loc["2024-07-04", "reason"] == "holiday"
     assert out.set_index("date").loc["2024-07-10", "reason"] == "unexplained"
+
+
+def test_classify_missing_publication_lag():
+    missing = pd.DatetimeIndex(["2024-07-10", "2024-07-30", "2024-07-31"])
+    out = classify_missing(
+        missing, "us", dt.date(2024, 7, 1), dt.date(2024, 7, 31), publication_lag_days=2
+    ).set_index("date")["reason"]
+    assert out.loc["2024-07-10"] == "unexplained"
+    assert out.loc["2024-07-30"] == "publication_lag"
+    assert out.loc["2024-07-31"] == "publication_lag"

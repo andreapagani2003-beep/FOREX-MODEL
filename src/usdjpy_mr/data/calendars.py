@@ -22,8 +22,11 @@ def _year_range(start: dt.date, end: dt.date) -> range:
 
 @lru_cache(maxsize=8)
 def _us_holidays(years: tuple[int, ...]) -> set[dt.date]:
-    hol = holidays.financial_holidays("NYSE", years=years)
-    return set(hol.keys())
+    """US bond-market (SIFMA) full closures: NYSE holidays plus the federal holidays the stock
+    market stays open for (Columbus Day, Veterans Day). Union of the two covers the SIFMA list."""
+    nyse = holidays.financial_holidays("NYSE", years=years)
+    federal = holidays.country_holidays("US", years=years)
+    return set(nyse.keys()) | set(federal.keys())
 
 
 @lru_cache(maxsize=8)
@@ -53,9 +56,24 @@ def business_days(
 
 
 def classify_missing(
-    missing: pd.DatetimeIndex, market: str, start: dt.date, end: dt.date
+    missing: pd.DatetimeIndex,
+    market: str,
+    start: dt.date,
+    end: dt.date,
+    publication_lag_days: int = 0,
 ) -> pd.DataFrame:
-    """Label each missing weekday as 'holiday' (known closure) or 'unexplained'."""
+    """Label each missing weekday as 'holiday' (known closure), 'publication_lag' (within the
+    last `publication_lag_days` calendar days before `end`, i.e. not yet published), or
+    'unexplained'."""
     hol = us_holidays(start, end) if market == "us" else jp_holidays(start, end)
-    rows = [(d, "holiday" if d.date() in hol else "unexplained") for d in missing]
+    lag_from = end - dt.timedelta(days=publication_lag_days)
+
+    def _reason(d: pd.Timestamp) -> str:
+        if d.date() in hol:
+            return "holiday"
+        if publication_lag_days and d.date() > lag_from:
+            return "publication_lag"
+        return "unexplained"
+
+    rows = [(d, _reason(d)) for d in missing]
     return pd.DataFrame(rows, columns=["date", "reason"])

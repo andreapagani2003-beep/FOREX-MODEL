@@ -8,7 +8,7 @@ trade the residual via a rolling z-score. Full brief in `docs/HANDOFF.md`; worki
 
 | Phase | Branch | State |
 |---|---|---|
-| 1 Data pipeline | `phase-1-data` | built and unit-tested; awaiting real-data acceptance run |
+| 1 Data pipeline | `phase-1-data` | acceptance met on real data (4,164 rows, 2010-01-04 → 2026-09-03); PR open |
 | 2 Statistical confirmation | | not started |
 | 3 Backtest | | not started |
 | 4 Signal engine | | not started |

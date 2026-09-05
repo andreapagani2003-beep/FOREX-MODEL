@@ -40,6 +40,7 @@ alignment:
   drop_if_missing: [jgb2y, jgb10y]
   asof_max_lag_days: {usdjpy: 5, us2y: 5, us10y: 5, us10y_real: 5}
   weekmask: "Mon Tue Wed Thu Fri"
+  publication_lag_days: 3          # gaps this close to end_date are 'not yet published', not errors
 validation:
   bounds:
     usdjpy: [70.0, 200.0]

@@ -97,6 +97,7 @@ class AlignmentReport:
             "source_gaps": {
                 k: {
                     "holiday": int((v["reason"] == "holiday").sum()),
+                    "publication_lag": int((v["reason"] == "publication_lag").sum()),
                     "unexplained": int((v["reason"] == "unexplained").sum()),
                     "unexplained_dates": [
                         d.strftime("%Y-%m-%d") for d in v.loc[v["reason"] == "unexplained", "date"]
@@ -250,7 +251,9 @@ def align_daily(
         obs_days = s.dropna().index
         missing_days = index.difference(obs_days)
         market = "jp" if _COL_GROUP[col] == "jgb" else "us"
-        source_gaps[col] = classify_missing(missing_days, market, start, end)
+        source_gaps[col] = classify_missing(
+            missing_days, market, start, end, cfg.publication_lag_days
+        )
 
     report = AlignmentReport(
         convention=cfg.convention,

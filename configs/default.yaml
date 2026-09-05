@@ -62,6 +62,7 @@ alignment:
     jgb10y: 7
     us10y_real: 4                 # optional column; lag allowed so US holidays do not drop it
   weekmask: "Mon Tue Wed Thu Fri"
+  publication_lag_days: 3          # gaps this close to end_date are 'not yet published', not errors
 
 validation:
   bounds:                         # inclusive [min, max]; violations fail validation
