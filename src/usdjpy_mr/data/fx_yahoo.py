@@ -1,8 +1,11 @@
 """USD/JPY daily closes from Yahoo Finance via yfinance (research source).
 
-Yahoo's daily FX bar for date D closes around 21:00-23:00 UTC, i.e. near the NY 17:00 ET
-FX day roll, so `Close` on D is treated as the NY-close snapshot of D. IBKR is the production
-source (see ibkr.py); differences between the two are reported in Phase 1 validation.
+Yahoo labels its daily FX bar with the date on which the bar ends (about 00:00 GMT), so the
+row labelled D actually holds the NY 17:00 ET close of the previous weekday. Verified against
+IBKR IDEALPRO daily closes on 2026-08-28..2026-09-03: Yahoo[2026-08-31] = IBKR close of
+2026-08-28, Yahoo[2026-09-03] = IBKR close of 2026-09-02. `relabel_by_weekdays` moves every row
+back by `yahoo_label_offset_bdays` (config, default -1) so that the value on D is the NY close
+of D. IBKR is the production source (see ibkr.py).
 """
 
 from __future__ import annotations
@@ -11,6 +14,7 @@ import datetime as dt
 from collections.abc import Callable
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 from usdjpy_mr.config import FxConfig
@@ -66,6 +70,18 @@ def normalise_yahoo_frame(df: pd.DataFrame, field: str, ticker: str) -> pd.Serie
     return s.dropna()
 
 
+def relabel_by_weekdays(s: pd.Series, offset_bdays: int) -> pd.Series:
+    """Move each observation's date by `offset_bdays` weekdays (Mon-Fri), keeping values.
+    A weekend label is first rolled back to the preceding weekday. Duplicate targets keep the
+    last observation."""
+    if offset_bdays == 0:
+        return s
+    days = s.index.to_numpy().astype("datetime64[D]")
+    moved = np.busday_offset(days, offset_bdays, roll="backward")
+    out = pd.Series(s.to_numpy(), index=pd.DatetimeIndex(moved, name="date"), name=s.name)
+    return out[~out.index.duplicated(keep="last")].sort_index()
+
+
 def fetch_fx_yahoo(
     cfg: FxConfig,
     start: dt.date,
@@ -88,6 +104,9 @@ def fetch_fx_yahoo(
         bytes=len(body),
     )
     s = normalise_yahoo_frame(raw, cfg.yahoo_field, cfg.yahoo_ticker)
+    s = relabel_by_weekdays(s, cfg.yahoo_label_offset_bdays)
+    if cfg.yahoo_label_offset_bdays:
+        log.info("Yahoo rows relabelled by %+d weekday(s)", cfg.yahoo_label_offset_bdays)
     log.info(
         "Yahoo %s: %d rows, %s -> %s",
         cfg.yahoo_ticker,

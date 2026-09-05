@@ -56,6 +56,7 @@ class FxConfig(_Strict):
     provider: Literal["yahoo", "ibkr"]
     yahoo_ticker: str
     yahoo_field: str
+    yahoo_label_offset_bdays: int = 0
     snapshot_note: str
 
 
@@ -122,6 +123,7 @@ class ValidationConfig(_Strict):
     min_rows: int = Field(ge=1)
     required_start_before: dt.date
     max_days_stale_end: int = Field(ge=0)
+    timing_min_margin: float = Field(default=0.0, ge=0.0)
 
     @field_validator("bounds")
     @classmethod
@@ -132,12 +134,112 @@ class ValidationConfig(_Strict):
         return v
 
 
+# --- Phase 2: statistics ------------------------------------------------------------------------
+class SpecConfig(_Strict):
+    tenor: Literal["2y", "10y"]
+    yield_type: Literal["nominal", "real"]
+
+    @property
+    def name(self) -> str:
+        return f"{self.tenor}_{self.yield_type}"
+
+
+class SampleWindow(_Strict):
+    start: dt.date | None = None
+    end: dt.date | None = None
+
+
+class AdfConfig(_Strict):
+    regression: Literal["c", "ct", "n"] = "c"
+    autolag: Literal["AIC", "BIC", "t-stat"] | None = "AIC"
+
+
+class KpssConfig(_Strict):
+    regression: Literal["c", "ct"] = "c"
+    nlags: str | int = "auto"
+
+
+class EngleGrangerConfig(_Strict):
+    trend: Literal["c", "ct", "ctt", "n"] = "c"
+    autolag: Literal["aic", "bic", "t-stat"] | None = "aic"
+    max_lag: int | None = None
+
+
+class JohansenConfig(_Strict):
+    det_order: int = 0
+    k_ar_diff: int = Field(default=1, ge=0)
+
+
+class KalmanConfig(_Strict):
+    delta: float = Field(gt=0, lt=1)
+    obs_var: float | None = None
+    init_from_first_n: int = Field(ge=10)
+
+
+class OuConfig(_Strict):
+    n_boot: int = Field(ge=0)
+    ci: float = Field(gt=0, lt=1)
+    seed: int = 0
+
+
+class KnownBreak(_Strict):
+    date: dt.date
+    label: str
+
+
+class BreaksConfig(_Strict):
+    known_dates: list[KnownBreak]
+    trim: float = Field(gt=0, lt=0.5)
+    max_breaks: int = Field(ge=1)
+    n_boot: int = Field(ge=0)
+    seed: int = 0
+    recent_months: int = Field(ge=1)
+    tolerance_days: int = Field(ge=0)
+
+
+class RollingCointConfig(_Strict):
+    window: int = Field(ge=50)
+    step: int = Field(ge=1)
+
+
+class AnchorConfig(_Strict):
+    start: dt.date
+    end: dt.date
+    expected_sign: Literal["negative", "positive"]
+
+
+class StatsConfig(_Strict):
+    specs: list[SpecConfig]
+    samples: dict[str, SampleWindow]
+    significance: float = Field(gt=0, lt=1)
+    adf: AdfConfig
+    kpss: KpssConfig
+    engle_granger: EngleGrangerConfig
+    johansen: JohansenConfig
+    rolling_ols_windows: list[int]
+    kalman: KalmanConfig
+    ou: OuConfig
+    half_life_bounds: tuple[float, float]
+    breaks: BreaksConfig
+    rolling_coint: RollingCointConfig
+    anchors: list[AnchorConfig]
+    zscore_window: int = Field(ge=5)
+
+    @field_validator("half_life_bounds")
+    @classmethod
+    def _hl(cls, v: tuple[float, float]) -> tuple[float, float]:
+        if not 0 < v[0] < v[1]:
+            raise ValueError("half_life_bounds must be (lo, hi) with 0 < lo < hi")
+        return v
+
+
 class Config(_Strict):
     project: ProjectConfig
     paths: PathsConfig
     sources: SourcesConfig
     alignment: AlignmentConfig
     validation: ValidationConfig
+    stats: StatsConfig | None = None
     root: Path = Field(default_factory=Path.cwd, exclude=True)
 
     # Resolved paths -------------------------------------------------------------------------

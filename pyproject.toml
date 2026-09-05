@@ -48,7 +48,10 @@ extend-exclude = ["notebooks"]  # exploratory only
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "N", "SIM", "PD"]
-ignore = ["PD010"]
+ignore = ["PD010", "N806"]  # N806: uppercase matrix names (P, Q, K) in filters
+
+[tool.ruff.lint.per-file-ignores]
+"src/usdjpy_mr/stats/report.py" = ["E501"]  # long prose strings in the markdown writer
 
 [tool.ruff.format]
 quote-style = "double"

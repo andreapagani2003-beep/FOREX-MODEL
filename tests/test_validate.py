@@ -79,3 +79,17 @@ def test_catches_short_history_and_stale_end(cfg, synthetic_daily):
 def test_metadata_row_count_mismatch(cfg, synthetic_daily):
     res = validate_daily(synthetic_daily, _cfg(cfg), metadata={"row_count": 1}, today=TODAY)
     assert "metadata" in _checks(res)
+
+
+def test_timing_check_catches_shifted_spot(cfg, synthetic_daily):
+    df = synthetic_daily.copy()
+    rng = np.random.default_rng(3)
+    # make spot changes track spread changes on the same day, then shift spot forward one row
+    shock = rng.normal(0, 1, len(df))
+    df["us10y"] = 2.5 + np.cumsum(shock * 0.02)
+    df["spread10y"] = df["us10y"] - df["jgb10y"]
+    df["usdjpy"] = 100 + np.cumsum(shock * 0.5 + rng.normal(0, 0.3, len(df)))
+    assert "timing" not in _checks(validate_daily(df, _cfg(cfg), today=TODAY))
+    shifted = df.copy()
+    shifted["usdjpy"] = df["usdjpy"].shift(1).bfill()
+    assert "timing" in _checks(validate_daily(shifted, _cfg(cfg), today=TODAY))
