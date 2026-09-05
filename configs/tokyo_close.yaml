@@ -1,0 +1,55 @@
+# Alternative snapshot convention: Tokyo 15:00 JST. JGB is same-day and mandatory; NY-close
+# quantities (FX, UST) are taken as-of the previous NY close. Everything else as default.yaml.
+project:
+  name: usdjpy_mr
+  start_date: "2010-01-01"
+  end_date: null
+paths:
+  raw_dir: data/raw
+  processed_dir: data/processed
+  reports_dir: reports
+  signals_dir: signals
+sources:
+  fred:
+    api_key_env: FRED_API_KEY
+    csv_url_template: "https://fred.stlouisfed.org/graph/fredgraph.csv?id={series}"
+    series: {us2y: DGS2, us10y: DGS10, us10y_real: DFII10}
+    snapshot_note: "US Treasury CMT yields, 15:30 ET (NY close)"
+  mof:
+    all_history_url: "https://www.mof.go.jp/english/policy/jgbs/reference/interest_rate/historical/jgbcme_all.csv"
+    current_year_url: "https://www.mof.go.jp/english/policy/jgbs/reference/interest_rate/jgbcme.csv"
+    encoding_candidates: ["utf-8", "cp932", "latin-1"]
+    tenors: {jgb2y: "2Y", jgb10y: "10Y"}
+    snapshot_note: "JGB benchmark yields, JSDA reference, ~15:00 JST (Tokyo close)"
+  fx:
+    provider: yahoo
+    yahoo_ticker: "USDJPY=X"
+    yahoo_field: Close
+    snapshot_note: "Yahoo daily bar close; approximates NY 17:00 ET close. IBKR is the production source."
+  ibkr:
+    host_env: IBKR_HOST
+    port_env: IBKR_PORT
+    client_id_env: IBKR_CLIENT_ID
+    spot: {symbol: USD, currency: JPY, exchange: IDEALPRO, what_to_show: MIDPOINT}
+    futures: {symbol: JPY, exchange: CME}
+    bar_size: "1 day"
+    use_rth: false
+    live_account_confirmed: false
+alignment:
+  convention: tokyo_close
+  drop_if_missing: [jgb2y, jgb10y]
+  asof_max_lag_days: {usdjpy: 5, us2y: 5, us10y: 5, us10y_real: 5}
+  weekmask: "Mon Tue Wed Thu Fri"
+  publication_lag_days: 3          # gaps this close to end_date are 'not yet published', not errors
+validation:
+  bounds:
+    usdjpy: [70.0, 200.0]
+    us2y: [-1.0, 20.0]
+    us10y: [-1.0, 20.0]
+    us10y_real: [-3.0, 10.0]
+    jgb2y: [-1.0, 10.0]
+    jgb10y: [-1.0, 10.0]
+  max_gap_business_days: 5
+  min_rows: 2500
+  required_start_before: "2010-01-15"
+  max_days_stale_end: 10

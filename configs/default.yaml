@@ -1,0 +1,78 @@
+# All tunables for usdjpy_mr. Validated by src/usdjpy_mr/config.py (pydantic, extra keys forbidden).
+project:
+  name: usdjpy_mr
+  start_date: "2010-01-01"        # earliest date in processed/daily.parquet
+  end_date: null                  # null = today
+
+paths:
+  raw_dir: data/raw
+  processed_dir: data/processed
+  reports_dir: reports
+  signals_dir: signals
+
+sources:
+  fred:
+    api_key_env: FRED_API_KEY
+    csv_url_template: "https://fred.stlouisfed.org/graph/fredgraph.csv?id={series}"
+    series:
+      us2y: DGS2                  # 2y constant maturity, nominal
+      us10y: DGS10                # 10y constant maturity, nominal
+      us10y_real: DFII10          # 10y TIPS constant maturity (real)
+    snapshot_note: "US Treasury CMT yields, 15:30 ET (NY close)"
+  mof:
+    all_history_url: "https://www.mof.go.jp/english/policy/jgbs/reference/interest_rate/historical/jgbcme_all.csv"
+    current_year_url: "https://www.mof.go.jp/english/policy/jgbs/reference/interest_rate/jgbcme.csv"
+    encoding_candidates: ["utf-8", "cp932", "latin-1"]
+    tenors:
+      jgb2y: "2Y"
+      jgb10y: "10Y"
+    snapshot_note: "JGB benchmark yields, JSDA reference, ~15:00 JST (Tokyo close)"
+  fx:
+    provider: yahoo               # yahoo (research) | ibkr (production)
+    yahoo_ticker: "USDJPY=X"
+    yahoo_field: Close
+    snapshot_note: "Yahoo daily bar close; approximates NY 17:00 ET close. IBKR is the production source."
+  ibkr:
+    host_env: IBKR_HOST
+    port_env: IBKR_PORT
+    client_id_env: IBKR_CLIENT_ID
+    spot:
+      symbol: USD
+      currency: JPY
+      exchange: IDEALPRO
+      what_to_show: MIDPOINT
+    futures:
+      symbol: JPY                 # CME 6J
+      exchange: CME
+    bar_size: "1 day"
+    use_rth: false
+    live_account_confirmed: false # NEVER set true before Phase 3 acceptance and Andrea's explicit go
+
+alignment:
+  # ny_close: snapshot at NY 17:00 ET on date t. FX and UST from t; JGB from Tokyo close of t
+  #           (which precedes the snapshot by ~11h), or the previous Tokyo close on a Japan holiday.
+  # tokyo_close: snapshot at Tokyo 15:00 JST on date t. JGB from t; UST and FX from t-1 NY close.
+  convention: ny_close
+  # If the snapshot-date observation is missing for these columns the row is dropped (and logged).
+  drop_if_missing: [usdjpy, us2y, us10y]
+  # Columns allowed to carry the last available value forward (as-of), with the max lag in
+  # calendar days; a lag beyond the limit makes the value NaN (and the row is dropped, logged).
+  asof_max_lag_days:
+    jgb2y: 7                      # Japan Golden Week / year-end can span up to ~6 business days
+    jgb10y: 7
+    us10y_real: 4                 # optional column; lag allowed so US holidays do not drop it
+  weekmask: "Mon Tue Wed Thu Fri"
+  publication_lag_days: 3          # gaps this close to end_date are 'not yet published', not errors
+
+validation:
+  bounds:                         # inclusive [min, max]; violations fail validation
+    usdjpy: [70.0, 200.0]
+    us2y: [-1.0, 20.0]
+    us10y: [-1.0, 20.0]
+    us10y_real: [-3.0, 10.0]
+    jgb2y: [-1.0, 10.0]
+    jgb10y: [-1.0, 10.0]
+  max_gap_business_days: 5        # larger gaps between consecutive rows are reported as errors
+  min_rows: 2500                  # ~10 years of daily data
+  required_start_before: "2010-01-15"
+  max_days_stale_end: 10          # last row must be within this many days of end_date
