@@ -15,7 +15,7 @@ def _synthetic_daily(n: int = 1500, seed: int = 5) -> pd.DataFrame:
     rng = np.random.default_rng(seed)
     idx = pd.bdate_range("2019-01-01", periods=n)
     idx.name = "date"
-    us10 = 2.0 + np.cumsum(rng.normal(0, 0.02, n))
+    us10 = 2.0 + np.cumsum(rng.normal(0, 0.05, n))
     jgb10 = 0.3 + np.cumsum(rng.normal(0, 0.005, n))
     us2 = us10 - 0.5 + np.cumsum(rng.normal(0, 0.01, n))
     jgb2 = jgb10 - 0.3
