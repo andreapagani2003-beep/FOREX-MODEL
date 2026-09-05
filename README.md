@@ -9,7 +9,7 @@ trade the residual via a rolling z-score. Full brief in `docs/HANDOFF.md`; worki
 | Phase | Branch | State |
 |---|---|---|
 | 1 Data pipeline | `phase-1-data` | acceptance met on real data (4,164 rows, 2010-01-04 → 2026-09-03); PR open |
-| 2 Statistical confirmation | | not started |
+| 2 Statistical confirmation | `phase-2-stats` | **acceptance NOT met**: no cointegration at 5% on full/post-2016, half-lives 360–2100 days; see `reports/phase2_summary.md` |
 | 3 Backtest | | not started |
 | 4 Signal engine | | not started |
 | 5 Export (IBKR TWS, MT5) | | not started |
@@ -22,6 +22,7 @@ cp .env.example .env                # add FRED_API_KEY (optional: keyless CSV fa
 uv run scripts/fetch.py             # -> data/processed/daily.parquet + metadata.json
 uv run scripts/validate.py          # -> reports/phase1_validation.md, exit 1 on any error
 uv run pytest                       # unit tests (no network needed)
+uv run scripts/test_stats.py        # Phase 2: reports/phase2_summary.md + figures (exit 2 if acceptance not met)
 ```
 
 ## Quick start (Google Colab)

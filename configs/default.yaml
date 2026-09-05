@@ -76,3 +76,49 @@ validation:
   min_rows: 2500                  # ~10 years of daily data
   required_start_before: "2010-01-15"
   max_days_stale_end: 10          # last row must be within this many days of end_date
+
+stats:
+  # Phase 2: statistical confirmation. Specifications = tenor x yield_type x sample.
+  specs:
+    - {tenor: 10y, yield_type: nominal}
+    - {tenor: 2y, yield_type: nominal}
+    - {tenor: 10y, yield_type: real}     # US real (DFII10) minus nominal JGB; no JGB real yield source
+  samples:
+    full: {start: null, end: null}
+    post_2016: {start: "2016-01-01", end: null}
+    post_2022: {start: "2022-01-01", end: null}
+  significance: 0.05
+  adf: {regression: c, autolag: AIC}
+  kpss: {regression: c, nlags: auto}
+  engle_granger: {trend: c, autolag: aic, max_lag: null}
+  johansen: {det_order: 0, k_ar_diff: 1}
+  rolling_ols_windows: [250, 500, 750]
+  kalman:
+    delta: 1.0e-5              # state noise ratio; Q = delta/(1-delta) * I
+    obs_var: null              # null = estimate from static OLS residual variance
+    init_from_first_n: 250     # initialise state/covariance from OLS on the first n obs
+  ou:
+    n_boot: 1000
+    ci: 0.95
+    seed: 7
+  half_life_bounds: [5, 50]    # tradeable band, in bars
+  breaks:
+    known_dates:               # policy events from the handoff, tested with Chow
+      - {date: "2022-09-22", label: "MoF intervention"}
+      - {date: "2022-12-20", label: "BoJ YCC tweak"}
+      - {date: "2023-07-28", label: "BoJ YCC change"}
+      - {date: "2023-10-31", label: "BoJ YCC change"}
+      - {date: "2024-03-19", label: "BoJ NIRP exit"}
+      - {date: "2024-04-29", label: "MoF intervention"}
+      - {date: "2024-07-31", label: "BoJ hike / carry unwind"}
+    trim: 0.15                 # sup-F trimming fraction at each end
+    max_breaks: 3
+    n_boot: 500
+    seed: 11
+    recent_months: 24          # 'no unexplained break in the last 24 months' acceptance clause
+    tolerance_days: 45         # a found break within this distance of a known date is 'explained'
+  rolling_coint: {window: 500, step: 5}
+  anchors:                     # sanity check on the residual sign (handoff §1 / §5.7)
+    - {start: "2023-01-01", end: "2023-01-31", expected_sign: negative}
+    - {start: "2024-07-01", end: "2024-07-15", expected_sign: positive}
+  zscore_window: 60

@@ -88,3 +88,72 @@ residual is Phase 2 work.
 
 **Decision.** Phase 1 acceptance criteria met (fetch + validate clean from empty `data/`, 2010 →
 present). Convention stays `ny_close`. PR opened for review; Phase 2 starts on approval.
+
+## 2026-09-05 — Phase 2: statistical confirmation. Acceptance NOT met.
+
+**Run.** `scripts/test_stats.py` on the Phase 1 parquet (4,164 rows, 2010-01-04 → 2026-09-03,
+`ny_close`). 3 specs (10y nominal, 2y nominal, 10y US-real minus nominal JGB) × 3 samples
+(full, post-2016, post-2022). Full table and figures: `reports/phase2_summary.md`,
+`reports/figures/phase2_*.png`, raw numbers in `reports/phase2/results.json`.
+
+**What the numbers say.**
+
+| spec / sample | EG p (spot on spread) | Johansen trace r=0 (crit95 15.5) | beta (static) | OU half-life, days (95% CI) |
+|---|---|---|---|---|
+| 10y nominal / full | 0.97 | 4.9 | 19.0 | 359 (116–643) |
+| 10y nominal / post-2016 | 0.99 | 2.8 | 13.9 | 648 (90–∞) |
+| 10y nominal / post-2022 | 0.36 | 12.0 | 0.8 (R² 0.002) | 122 (51–219) |
+| 2y nominal / full | 0.96 | 1.6 | 12.7 | 438 (116–819) |
+| 2y nominal / post-2016 | 0.99 | 2.4 | 10.3 | 455 (82–∞) |
+| 2y nominal / post-2022 | 0.52 | 18.0 (rank 1) | 1.6 (R² 0.02) | 135 (50–257) |
+| 10y real / full | 0.99 | 7.0 | 18.0 | 619 (139–∞) |
+| 10y real / post-2016 | 0.99 | 2.9 | 9.8 | 2101 (109–∞) |
+| 10y real / post-2022 | 0.49 | 11.4 | 2.2 (R² 0.02) | 132 (50–249) |
+
+- Levels are I(1) for spot and for every spread (ADF/KPSS agree), as expected.
+- **No specification is cointegrated at 5% on the full or post-2016 sample**, by either test.
+  Engle-Granger p-values are 0.95–0.99 in both orderings; Johansen trace statistics are 2–7
+  against a critical value of 15.5.
+- **Half-lives are 360–2100 days**, an order of magnitude outside the 5–50 band. The residual
+  is a slow random walk, not a mean-reverting spread.
+- Rolling 500-day Engle-Granger rejects in only 7–11% of windows, essentially all in 2020
+  (window-end median p 0.01 in 2020, 0.2–0.9 in every other year). The relationship held for one
+  stretch and nowhere else.
+- Beta is unstable: rolling-500 beta ranges −34 to +24 (10y), and sequential sup-F finds sign
+  flips after Aug 2023 / Jan 2024 (beta +15 → −4) and again in Mar 2025 (+9 → −13). Post-2022
+  the level regression has R² ≈ 0 and beta ≈ 0. Chow tests at the seven known policy dates all
+  show enormous classical F, but sieve-bootstrap p-values of 0.06–0.09: with a residual this
+  persistent, even a huge coefficient change is not distinguishable from drift, which is the same
+  conclusion as the cointegration tests seen from the other side.
+- The yearly picture makes it concrete: by the full-sample fit, USD/JPY was 25 below fair value
+  in 2010–11, 18 below in 2018, 15 above in 2020, and 48 above in 2026 (spot 159 with a 10y
+  spread of 1.9pp, versus 128 with 3.0pp in Jan 2023). The long-run level mapping has drifted
+  far more than it has reverted.
+- Sanity anchors: static residual is negative in Jan 2023 (−2.3, z −0.5) and positive in Jul
+  2024 (+25, z +1.6). Signs match the handoff, but Jan 2023 is only mildly negative, not
+  "strongly"; this is a weak pass and does not rescue the acceptance criteria.
+- The only 5% rejection anywhere is Johansen rank 1 for 2y nominal post-2022 (trace 18.0 vs
+  15.5) with EG p 0.52 and a 135-day half-life: not confirmed by the second test and far outside
+  the band.
+
+**Diagnostics tried and rejected (not acceptance, documented so they are not re-tried).**
+log(spot) instead of level: EG p 0.95 (full) / 0.99 (post-2016). Adding a deterministic trend
+(`ct`): 0.88 / 0.36 level, 0.82 / 0.19 log. Nothing approaches 5%, and a trend term would be a
+fitted excuse for the drift, not evidence of equilibrium.
+
+**Method notes.** Two things had to be done properly: (1) half-life uses the exact mapping
+theta = −ln(1 + slope) rather than −slope, which biases short half-lives upward; (2) break-test
+p-values use a sieve (AR(p)) bootstrap, because an iid residual bootstrap flagged spurious breaks
+on synthetic OU residuals (a persistent residual makes any split look significant). The
+classical Chow p-values are printed for reference only.
+
+**Decision.** Per the working agreement, Phase 2 fails its acceptance criteria and the pipeline
+stops here. Nothing was loosened. A static or slowly-varying linear level relationship between
+USD/JPY and the US–JGB yield spread is not supported over 2010–2026; the spread explains the
+direction of big moves (2022, 2024) but not a stable level to revert to. Options for Andrea to
+decide, none of which is the current model: (a) a regime-conditional relationship (Markov
+switching on the residual dynamics or the beta), (b) a richer fair-value model (add terms such as
+risk sentiment, BoJ balance sheet, terms of trade) and re-test cointegration, (c) a shorter-horizon
+error-correction specification in changes rather than levels, (d) accept that 2020-style episodes
+are the only cointegrated regime and treat the strategy as episodic. Each is a new hypothesis
+with its own Phase 2, not a tweak of this one.
