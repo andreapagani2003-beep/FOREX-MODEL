@@ -1,0 +1,29 @@
+# secrets
+.env
+# data & generated outputs
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+reports/*
+!reports/.gitkeep
+!reports/*_summary.md
+!reports/phase*_*.md
+signals/*
+!signals/.gitkeep
+# python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+build/
+dist/
+# notebooks
+.ipynb_checkpoints/
+# editors / os
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
